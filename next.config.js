@@ -5,7 +5,9 @@ const nextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: '**' }
     ]
-  }
+  },
+  // Optimize for production (Vercel handles this automatically, but good to be explicit)
+  swcMinify: true,
 }
 
 module.exports = nextConfig

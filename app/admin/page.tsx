@@ -91,7 +91,7 @@ export default function AdminPage() {
     // Add title below logo (with spacing)
     doc.setTextColor(255, 255, 255) // White text
     doc.setFontSize(26)
-    doc.setFont(undefined, 'bold')
+    doc.setFont('helvetica', 'bold')
     const titleText = `${typeFullName} Builder List`
     const titleWidth = doc.getTextWidth(titleText)
     doc.text(titleText, (pageWidth - titleWidth) / 2, titleY)
@@ -107,7 +107,7 @@ export default function AdminPage() {
 
     // Dark green glass look - consistent color
     // Using a medium dark green that gives glass effect appearance
-    const glassGreen = [24, 165, 143] // Medium teal-green for glass effect
+    const glassGreen: [number, number, number] = [24, 165, 143] // Medium teal-green for glass effect
 
     // Calculate table start position based on title
     const tableStartY = titleY + 10
@@ -119,30 +119,30 @@ export default function AdminPage() {
       startY: tableStartY,
       theme: 'plain',
       styles: {
-        fillColor: glassGreen, // Consistent glass green for all cells
-        textColor: [255, 255, 255], // White text
+        fillColor: glassGreen as any, // Consistent glass green for all cells
+        textColor: [255, 255, 255] as any, // White text
         fontSize: 9,
         cellPadding: 4,
-        lineColor: [255, 255, 255], // White borders
+        lineColor: [255, 255, 255] as any, // White borders
         lineWidth: 0.3,
         fontStyle: 'normal'
       },
       headStyles: {
-        fillColor: [21, 208, 170], // Slightly lighter green for header
-        textColor: [255, 255, 255],
+        fillColor: [21, 208, 170] as any, // Slightly lighter green for header
+        textColor: [255, 255, 255] as any,
         fontStyle: 'bold',
         fontSize: 10,
-        lineColor: [255, 255, 255],
+        lineColor: [255, 255, 255] as any,
         lineWidth: 0.3
       },
       bodyStyles: {
-        fillColor: glassGreen, // Consistent glass green for all body cells
-        textColor: [255, 255, 255],
-        lineColor: [255, 255, 255],
+        fillColor: glassGreen as any, // Consistent glass green for all body cells
+        textColor: [255, 255, 255] as any,
+        lineColor: [255, 255, 255] as any,
         lineWidth: 0.3
       },
       alternateRowStyles: {
-        fillColor: [22, 178, 156] // Slightly different shade for alternate rows (still green)
+        fillColor: [22, 178, 156] as any // Slightly different shade for alternate rows (still green)
       },
       margin: { top: tableStartY, left: 10, right: 10, bottom: 10 }
     })
