@@ -1,0 +1,202 @@
+@tailwind base;
+
+@custom-variant dark (&:is(.dark *));
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --brand-green: #15d0aa;
+    --brand-dark: #062f2b;
+    --brand-light: #e8fff9;
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.5rem;
+  }
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  background: #0f7463;
+  color: white;
+}
+
+a { color: #a6fff0; }
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.card-surface {
+  background: linear-gradient(135deg, #18c5a6 0%, #12a98f 30%, #0b7f6d 85%);
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+}
+
+.hstack { display: flex; gap: 12px; align-items: center; }
+.vstack { display: flex; gap: 12px; flex-direction: column; }
+
+input, button, textarea {
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.06);
+  color: white;
+  padding: 10px 12px;
+}
+
+button { cursor: pointer; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.15); }
+th { text-align: left; opacity: 0.9; }
+
+.brand-title { font-weight: 800; letter-spacing: 0.02em; }
+
+.navbar-link:hover {
+  background: rgba(255,255,255,0.2) !important;
+}
+
+.navbar-button:hover {
+  background: rgba(255,255,255,0.15) !important;
+}
+
+.card-preview-wrapper {
+  width: 100%;
+  max-width: 1200px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.card-preview-wrapper canvas {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100vh - 300px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+@media (max-width: 1248px) {
+  .card-preview-wrapper canvas {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+}
+
+@media (max-height: 850px) {
+  .card-preview-wrapper canvas {
+    max-height: calc(100vh - 250px) !important;
+    width: auto !important;
+    height: auto !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .card-preview-wrapper canvas {
+    max-width: 100% !important;
+    max-height: calc(100vh - 200px) !important;
+  }
+}
+
+@keyframes rotate {
+  0% {
+    transform: rotateX(0deg) rotateY(0deg);
+  }
+  100% {
+    transform: rotateX(360deg) rotateY(360deg);
+  }
+}
+
+:root {
+  --wrapper-bg: #ffffff;
+  --cube-color: #0000;
+  --highlight-color: #00cc44;
+}
+
+.dark {
+  --wrapper-bg: #000000;
+  --cube-color: #0000;
+  --highlight-color: #00ff88;
+}
+
+@theme inline {
+  --color-wrapper-bg: var(----wrapper-bg);
+  --color-cube-color: var(----cube-color);
+  --color-highlight-color: var(----highlight-color);
+  @keyframes translate-z {
+  0%,
+  40%,
+  100% {
+    transform: translateZ(-2px);
+    }
+  30% {
+    transform: translateZ(16px) translateY(-1px);
+    }
+  }
+  @keyframes face-color {
+  0%,
+  50%,
+  100% {
+    background-color: var(--cube-color);
+    }
+  10% {
+    background-color: var(--highlight-color);
+    }
+  }
+  @keyframes face-glow {
+  0%,
+  50%,
+  100% {
+    color: #fff0;
+    filter: none;
+    }
+  30% {
+    color: #fff;
+    filter: drop-shadow(0 14px 10px var(--highlight-color));
+    }
+  }
+  @keyframes edge-glow {
+  0%,
+  40%,
+  100% {
+    box-shadow: inset 0 0 2px 1px #0001,
+      inset 0 0 12px 1px #fff1;
+    }
+  30% {
+    box-shadow: 0 0 2px 0px var(--highlight-color);
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
