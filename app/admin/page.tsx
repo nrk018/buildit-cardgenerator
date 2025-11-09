@@ -9,7 +9,7 @@ import QRCode from 'qrcode'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
-type Builder = { id?: string; name: string; builder_number: number; type: string; registration_number?: string | null; email?: string | null; downloaded_at?: string | null; email_sent_at?: string | null }
+type Builder = { id?: string; name: string; builder_number: number; type: string; registration_number?: string | null; email?: string | null; department?: string | null; downloaded_at?: string | null; email_sent_at?: string | null }
 
 export default function AdminPage() {
   const [builders, setBuilders] = useState<Builder[]>([])
@@ -25,6 +25,7 @@ export default function AdminPage() {
   const [editType, setEditType] = useState<'MEM' | 'EC' | 'CC' | 'JC'>('MEM')
   const [editReg, setEditReg] = useState('')
   const [editEmail, setEditEmail] = useState('')
+  const [editDepartment, setEditDepartment] = useState('')
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
   const fetchBuilders = async () => {
@@ -102,6 +103,7 @@ export default function AdminPage() {
       `${b.type || 'MEM'}${b.builder_number}`,
       b.registration_number || '—',
       b.email || '—',
+      b.department || '—',
       b.email_sent_at ? new Date(b.email_sent_at).toLocaleDateString() : '—'
     ])
 
@@ -114,7 +116,7 @@ export default function AdminPage() {
     
     // Add table with consistent dark green glass styling
     autoTable(doc, {
-      head: [['Name', 'Builder Number', 'Registration Number', 'Email', 'Email Sent Date']],
+      head: [['Name', 'Builder Number', 'Registration Number', 'Email', 'Department', 'Email Sent Date']],
       body: tableData,
       startY: tableStartY,
       theme: 'plain',
@@ -163,6 +165,7 @@ export default function AdminPage() {
     setEditType((b.type || 'MEM') as 'MEM' | 'EC' | 'CC' | 'JC')
     setEditReg(b.registration_number || '')
     setEditEmail(b.email || '')
+    setEditDepartment(b.department || '')
   }
 
   const onSaveEdit = async () => {
@@ -170,7 +173,13 @@ export default function AdminPage() {
     const res = await fetch(`/api/builders/${editingId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: editName, type: editType, registration_number: editReg || null, email: editEmail || null })
+      body: JSON.stringify({ 
+        name: editName, 
+        type: editType, 
+        registration_number: editReg || null, 
+        email: editEmail || null,
+        department: editType !== 'MEM' ? (editDepartment || null) : null
+      })
     })
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}))
@@ -191,6 +200,7 @@ export default function AdminPage() {
     setEditType('MEM')
     setEditReg('')
     setEditEmail('')
+    setEditDepartment('')
   }
 
   const onDelete = async (id: string) => {
@@ -300,14 +310,15 @@ export default function AdminPage() {
         <table style={{ width: '100%', tableLayout: 'fixed', fontSize: '14px' }}>
           <thead>
             <tr>
-              <th style={{ width: '8%', padding: '6px 8px' }}>Builder #</th>
-              <th style={{ width: '8%', padding: '6px 8px' }}>Type</th>
-              <th style={{ width: '14%', padding: '6px 8px' }}>Name</th>
-              <th style={{ width: '12%', padding: '6px 8px' }}>Reg #</th>
-              <th style={{ width: '18%', padding: '6px 8px' }}>Email</th>
-              <th style={{ width: '11%', padding: '6px 8px' }}>Downloaded?</th>
-              <th style={{ width: '9%', padding: '6px 8px' }}>Email Sent</th>
-              <th style={{ width: '20%', padding: '6px 8px' }}>Actions</th>
+              <th style={{ width: '7%', padding: '6px 8px' }}>Builder #</th>
+              <th style={{ width: '6%', padding: '6px 8px' }}>Type</th>
+              <th style={{ width: '12%', padding: '6px 8px' }}>Name</th>
+              <th style={{ width: '10%', padding: '6px 8px' }}>Reg #</th>
+              <th style={{ width: '15%', padding: '6px 8px' }}>Email</th>
+              <th style={{ width: '12%', padding: '6px 8px' }}>Department</th>
+              <th style={{ width: '9%', padding: '6px 8px' }}>Downloaded?</th>
+              <th style={{ width: '8%', padding: '6px 8px' }}>Email Sent</th>
+              <th style={{ width: '21%', padding: '6px 8px' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -318,7 +329,13 @@ export default function AdminPage() {
                   {editingId === b.id ? (
                     <select 
                       value={editType} 
-                      onChange={e => setEditType(e.target.value as 'MEM' | 'EC' | 'CC' | 'JC')}
+                      onChange={e => {
+                        const newType = e.target.value as 'MEM' | 'EC' | 'CC' | 'JC'
+                        setEditType(newType)
+                        if (newType === 'MEM') {
+                          setEditDepartment('')
+                        }
+                      }}
                       style={{
                         width: '100%',
                         fontSize: '13px',
@@ -360,6 +377,42 @@ export default function AdminPage() {
                     <input value={editEmail} onChange={e => setEditEmail(e.target.value)} type="email" style={{ width: '100%', fontSize: '13px', padding: '4px' }} />
                   ) : (
                     <span title={b.email || ''} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.email || '—'}</span>
+                  )}
+                </td>
+                <td style={{ padding: '6px 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {editingId === b.id ? (
+                    editType !== 'MEM' ? (
+                      <select 
+                        value={editDepartment} 
+                        onChange={e => setEditDepartment(e.target.value)}
+                        style={{
+                          width: '100%',
+                          fontSize: '13px',
+                          padding: '4px',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(255,255,255,0.2)',
+                          background: 'rgba(21, 208, 170, 0.15)',
+                          backdropFilter: 'blur(10px)',
+                          WebkitBackdropFilter: 'blur(10px)',
+                          color: 'white',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value="" style={{ background: '#0f7463', color: 'white' }}>Select</option>
+                        <option value="Finance" style={{ background: '#0f7463', color: 'white' }}>Finance</option>
+                        <option value="Production" style={{ background: '#0f7463', color: 'white' }}>Production</option>
+                        <option value="Media & Design" style={{ background: '#0f7463', color: 'white' }}>Media & Design</option>
+                        <option value="Human Resources" style={{ background: '#0f7463', color: 'white' }}>Human Resources</option>
+                        <option value="Technical Projects" style={{ background: '#0f7463', color: 'white' }}>Technical Projects</option>
+                        <option value="Technical Communication" style={{ background: '#0f7463', color: 'white' }}>Technical Communication</option>
+                        <option value="Project Development" style={{ background: '#0f7463', color: 'white' }}>Project Development</option>
+                        <option value="Logistics" style={{ background: '#0f7463', color: 'white' }}>Logistics</option>
+                      </select>
+                    ) : (
+                      <span>—</span>
+                    )
+                  ) : (
+                    <span title={b.department || ''} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.department || '—'}</span>
                   )}
                 </td>
                 <td style={{ padding: '6px 8px', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

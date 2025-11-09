@@ -11,6 +11,7 @@ export default function HomePage() {
   const [number, setNumber] = useState<number | ''>('')
   const [reg, setReg] = useState('')
   const [email, setEmail] = useState('')
+  const [department, setDepartment] = useState<string>('')
   const [dataUrl, setDataUrl] = useState<string | null>(null)
   const [builderId, setBuilderId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
@@ -135,7 +136,13 @@ export default function HomePage() {
           
           <select 
             value={type} 
-            onChange={e => setType(e.target.value as 'MEM' | 'EC' | 'CC' | 'JC')}
+            onChange={e => {
+              const newType = e.target.value as 'MEM' | 'EC' | 'CC' | 'JC'
+              setType(newType)
+              if (newType === 'MEM') {
+                setDepartment('')
+              }
+            }}
             style={{
               width: '100%',
               boxSizing: 'border-box',
@@ -154,6 +161,35 @@ export default function HomePage() {
             <option value="CC" style={{ background: '#0f7463', color: 'white' }}>CC (Core Committee)</option>
             <option value="JC" style={{ background: '#0f7463', color: 'white' }}>JC (Junior Committee)</option>
           </select>
+          
+          {type !== 'MEM' && (
+            <select 
+              value={department} 
+              onChange={e => setDepartment(e.target.value)}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                borderRadius: '10px',
+                border: '1px solid rgba(255,255,255,0.2)',
+                background: 'rgba(21, 208, 170, 0.15)',
+                backdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(10px)',
+                color: 'white',
+                padding: '10px 12px',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="" style={{ background: '#0f7463', color: 'white' }}>Select Department</option>
+              <option value="Finance" style={{ background: '#0f7463', color: 'white' }}>Finance</option>
+              <option value="Production" style={{ background: '#0f7463', color: 'white' }}>Production</option>
+              <option value="Media & Design" style={{ background: '#0f7463', color: 'white' }}>Media & Design</option>
+              <option value="Human Resources" style={{ background: '#0f7463', color: 'white' }}>Human Resources</option>
+              <option value="Technical Projects" style={{ background: '#0f7463', color: 'white' }}>Technical Projects</option>
+              <option value="Technical Communication" style={{ background: '#0f7463', color: 'white' }}>Technical Communication</option>
+              <option value="Project Development" style={{ background: '#0f7463', color: 'white' }}>Project Development</option>
+              <option value="Logistics" style={{ background: '#0f7463', color: 'white' }}>Logistics</option>
+            </select>
+          )}
           
           <input 
             placeholder="Reg. number" 
@@ -182,8 +218,25 @@ export default function HomePage() {
             <button 
               disabled={!name || creating} 
               onClick={async () => {
+                // Validate department for EC, CC, JC types
+                if (type !== 'MEM' && !department) {
+                  alert('Please select a department for ' + (type === 'EC' ? 'Executive Committee' : type === 'CC' ? 'Core Committee' : 'Junior Committee') + ' members')
+                  return
+                }
+                
                 setCreating(true)
-                const res = await fetch('/api/builders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type, registration_number: reg || undefined, email: email || undefined, builder_number: number === '' ? undefined : Number(number) }) })
+                const res = await fetch('/api/builders', { 
+                  method: 'POST', 
+                  headers: { 'Content-Type': 'application/json' }, 
+                  body: JSON.stringify({ 
+                    name, 
+                    type, 
+                    registration_number: reg || undefined, 
+                    email: email || undefined, 
+                    builder_number: number === '' ? undefined : Number(number),
+                    department: type !== 'MEM' ? (department || null) : null
+                  }) 
+                })
                 setCreating(false)
                 if (!res.ok) {
                   const errorData = await res.json().catch(() => ({}))

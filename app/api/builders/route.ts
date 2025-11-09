@@ -13,7 +13,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { name, builder_number, type, registration_number, email } = body || {}
+  const { name, builder_number, type, registration_number, email, department } = body || {}
 
   if (!name) {
     return NextResponse.json({ error: 'name is required' }, { status: 400 })
@@ -21,6 +21,23 @@ export async function POST(req: NextRequest) {
 
   if (!type || !['MEM', 'EC', 'CC', 'JC'].includes(type)) {
     return NextResponse.json({ error: 'type is required and must be MEM, EC, CC, or JC' }, { status: 400 })
+  }
+
+  // Validate department: required for EC, CC, JC; not allowed for MEM
+  if (type === 'MEM') {
+    if (department) {
+      return NextResponse.json({ error: 'Members (MEM type) cannot have a department' }, { status: 400 })
+    }
+  } else {
+    // EC, CC, JC must have a department
+    if (!department) {
+      return NextResponse.json({ error: `Department is required for ${type} (${type === 'EC' ? 'Executive Committee' : type === 'CC' ? 'Core Committee' : 'Junior Committee'}) members` }, { status: 400 })
+    }
+    // Validate department value
+    const validDepartments = ['Finance', 'Production', 'Media & Design', 'Human Resources', 'Technical Projects', 'Technical Communication', 'Project Development', 'Logistics']
+    if (!validDepartments.includes(department)) {
+      return NextResponse.json({ error: 'Invalid department. Must be one of: ' + validDepartments.join(', ') }, { status: 400 })
+    }
   }
 
   let targetNumber = builder_number as number | undefined
@@ -55,7 +72,14 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('builders')
-    .insert({ name, builder_number: targetNumber, type, registration_number: registration_number || null, email: email || null })
+    .insert({ 
+      name, 
+      builder_number: targetNumber, 
+      type, 
+      registration_number: registration_number || null, 
+      email: email || null,
+      department: type !== 'MEM' ? (department || null) : null
+    })
     .select('*')
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

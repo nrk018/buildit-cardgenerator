@@ -22,6 +22,7 @@ export type BuilderRecord = {
   name: string
   registration_number: string | null
   email: string | null
+  department: string | null
   created_at: string
   downloaded_at: string | null
   download_count?: number | null
@@ -29,5 +30,7 @@ export type BuilderRecord = {
 }
 
 export type MemberType = 'MEM' | 'EC' | 'CC' | 'JC'
+
+export type Department = 'Finance' | 'Production' | 'Media & Design' | 'Human Resources' | 'Technical Projects' | 'Technical Communication' | 'Project Development' | 'Logistics'
 
 

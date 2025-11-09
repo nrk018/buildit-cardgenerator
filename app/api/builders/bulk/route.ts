@@ -26,12 +26,13 @@ export async function POST(req: NextRequest) {
     let num = r.builder_number ?? r.number
     const reg = r.registration_number || r.reg_no || r.reg || null
     const email = r.email || r.mail || null
+    const department = type !== 'MEM' ? (r.department || null) : null
     if (num === undefined || num === null || num === '') {
       // For bulk, we'll need to handle per-type auto-increment, but for simplicity use a global counter
       // This could be improved to track per-type
       num = nextNum++
     }
-    return { name, builder_number: Number(num), type, registration_number: reg, email }
+    return { name, builder_number: Number(num), type, registration_number: reg, email, department }
   }).filter(r => r && r.name)
 
   const { data, error } = await supabase
