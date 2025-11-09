@@ -52,7 +52,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       }
       // Validate department value if provided
       if (department !== undefined) {
-        const validDepartments = ['Finance', 'Production', 'Media & Design', 'Human Resources', 'Technical Projects', 'Technical Communication', 'Project Development', 'Logistics']
+        const validDepartments = ['Finance', 'Production', 'Media & Design', 'Human Resources', 'Technical Projects', 'Technical Communication', 'Project Development', 'Logistics', 'Directors']
         if (!validDepartments.includes(department)) {
           return NextResponse.json({ error: 'Invalid department. Must be one of: ' + validDepartments.join(', ') }, { status: 400 })
         }

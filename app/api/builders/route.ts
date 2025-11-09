@@ -6,9 +6,41 @@ export async function GET() {
     .from('builders')
     .select('*')
     .order('type', { ascending: true })
+    .order('department', { ascending: true, nullsFirst: false })
     .order('builder_number', { ascending: true })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ builders: data })
+  
+  // Additional client-side sorting to ensure proper order:
+  // EC first, then CC, then JC, then MEM
+  // Within each type, group by department, then by builder number
+  const typeOrder = { 'EC': 1, 'CC': 2, 'JC': 3, 'MEM': 4 }
+  const sorted = (data || []).sort((a, b) => {
+    // First sort by type (EC, CC, JC, MEM)
+    const typeA = typeOrder[a.type as keyof typeof typeOrder] || 999
+    const typeB = typeOrder[b.type as keyof typeof typeOrder] || 999
+    if (typeA !== typeB) {
+      return typeA - typeB
+    }
+    
+    // Then sort by department (for EC, CC, JC types)
+    // Group members by department, even if builder numbers are different
+    if (a.type !== 'MEM' && b.type !== 'MEM') {
+      const deptA = a.department || ''
+      const deptB = b.department || ''
+      if (deptA !== deptB) {
+        // Sort departments alphabetically, but empty/null departments go to end
+        if (!deptA && deptB) return 1
+        if (deptA && !deptB) return -1
+        if (!deptA && !deptB) return 0
+        return deptA.localeCompare(deptB)
+      }
+    }
+    
+    // Finally sort by builder number within same type and department
+    return a.builder_number - b.builder_number
+  })
+  
+  return NextResponse.json({ builders: sorted })
 }
 
 export async function POST(req: NextRequest) {
@@ -34,7 +66,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Department is required for ${type} (${type === 'EC' ? 'Executive Committee' : type === 'CC' ? 'Core Committee' : 'Junior Committee'}) members` }, { status: 400 })
     }
     // Validate department value
-    const validDepartments = ['Finance', 'Production', 'Media & Design', 'Human Resources', 'Technical Projects', 'Technical Communication', 'Project Development', 'Logistics']
+    const validDepartments = ['Finance', 'Production', 'Media & Design', 'Human Resources', 'Technical Projects', 'Technical Communication', 'Project Development', 'Logistics', 'Directors']
     if (!validDepartments.includes(department)) {
       return NextResponse.json({ error: 'Invalid department. Must be one of: ' + validDepartments.join(', ') }, { status: 400 })
     }

@@ -14,6 +14,7 @@ type Builder = { id?: string; name: string; builder_number: number; type: string
 export default function AdminPage() {
   const [builders, setBuilders] = useState<Builder[]>([])
   const [filterType, setFilterType] = useState<'ALL' | 'MEM' | 'EC' | 'CC' | 'JC'>('ALL')
+  const [filterDepartment, setFilterDepartment] = useState<string>('ALL')
   const [preview, setPreview] = useState<string | null>(null)
   const [previewName, setPreviewName] = useState<string>('')
   const [previewNum, setPreviewNum] = useState<number>(0)
@@ -27,6 +28,7 @@ export default function AdminPage() {
   const [editEmail, setEditEmail] = useState('')
   const [editDepartment, setEditDepartment] = useState('')
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [showDownloadConfirm, setShowDownloadConfirm] = useState(false)
 
   const fetchBuilders = async () => {
     const res = await fetch('/api/builders')
@@ -41,17 +43,94 @@ export default function AdminPage() {
     window.location.href = '/login'
   }
 
-  const filteredBuilders = filterType === 'ALL' 
-    ? builders 
-    : builders.filter(b => b.type === filterType)
+  // Get unique departments from builders
+  const departments = useMemo(() => {
+    const depts = new Set<string>()
+    builders.forEach(b => {
+      if (b.department) depts.add(b.department)
+    })
+    return Array.from(depts).sort()
+  }, [builders])
+
+  const filteredBuilders = useMemo(() => {
+    let filtered = builders
+    // Filter by type
+    if (filterType !== 'ALL') {
+      filtered = filtered.filter(b => b.type === filterType)
+    }
+    // Filter by department
+    if (filterDepartment !== 'ALL') {
+      filtered = filtered.filter(b => b.department === filterDepartment)
+    }
+    
+    // Sort: Type first (EC, CC, JC, MEM), then Department, then Builder Number
+    // Type order: EC -> CC -> JC -> MEM
+    const typeOrder = { 'EC': 1, 'CC': 2, 'JC': 3, 'MEM': 4 }
+    
+    return filtered.sort((a, b) => {
+      // First sort by type
+      const typeA = typeOrder[a.type as keyof typeof typeOrder] || 999
+      const typeB = typeOrder[b.type as keyof typeof typeOrder] || 999
+      if (typeA !== typeB) {
+        return typeA - typeB
+      }
+      
+      // Then sort by department (for EC, CC, JC types)
+      // Members with same department should be grouped together
+      if (a.type !== 'MEM' && b.type !== 'MEM') {
+        const deptA = a.department || ''
+        const deptB = b.department || ''
+        if (deptA !== deptB) {
+          // Sort departments alphabetically, but empty/null departments go to end
+          if (!deptA && deptB) return 1
+          if (deptA && !deptB) return -1
+          if (!deptA && !deptB) return 0
+          return deptA.localeCompare(deptB)
+        }
+      }
+      
+      // Finally sort by builder number within same type and department
+      return a.builder_number - b.builder_number
+    })
+  }, [builders, filterType, filterDepartment])
+
+  const generateDownloadDescription = () => {
+    if (filterType === 'ALL' && filterDepartment === 'ALL') {
+      return 'All builders (all types, all departments)'
+    }
+    if (filterType === 'ALL' && filterDepartment !== 'ALL') {
+      return `All builders from ${filterDepartment} department`
+    }
+    if (filterType !== 'ALL' && filterDepartment === 'ALL') {
+      const typeName = filterType === 'MEM' ? 'Member' : 
+                      filterType === 'EC' ? 'Executive Committee' : 
+                      filterType === 'CC' ? 'Core Committee' : 
+                      filterType === 'JC' ? 'Junior Committee' : filterType
+      return `All ${typeName} (${filterType}) members`
+    }
+    // Both filters applied
+    const typeName = filterType === 'MEM' ? 'Member' : 
+                    filterType === 'EC' ? 'Executive Committee' : 
+                    filterType === 'CC' ? 'Core Committee' : 
+                    filterType === 'JC' ? 'Junior Committee' : filterType
+    return `${typeName} (${filterType}) from ${filterDepartment} department`
+  }
 
   const onDownloadData = async () => {
+    setShowDownloadConfirm(false)
+    
     const typeLabel = filterType === 'ALL' ? 'All Types' : filterType
     const typeFullName = filterType === 'ALL' ? 'All Types' : 
                         filterType === 'MEM' ? 'Member' :
                         filterType === 'EC' ? 'Executive Committee' :
                         filterType === 'CC' ? 'Core Committee' :
                         filterType === 'JC' ? 'Junior Committee' : filterType
+
+    // Build title with department if filtered
+    let titleText = `${typeFullName} Builder List`
+    if (filterDepartment !== 'ALL') {
+      titleText = `${typeFullName} - ${filterDepartment} Builder List`
+    }
 
     // Load logo as base64
     const logoDataUrl = await loadLogoAsBase64()
@@ -60,25 +139,20 @@ export default function AdminPage() {
     const pageWidth = doc.internal.pageSize.getWidth()
     const pageHeight = doc.internal.pageSize.getHeight()
     
-    // Set background color (teal)
-    doc.setFillColor(15, 116, 99) // #0f7463
-    doc.rect(0, 0, pageWidth, pageHeight, 'F')
+    // Store logo data for use in callbacks
+    let logoInfo = { dataUrl: logoDataUrl, width: 50, height: 0, x: 0, titleY: 25 }
     
-    // Add logo at the top center
-    let logoHeight = 0
-    let titleY = 25
+    // Calculate logo dimensions
     try {
       if (logoDataUrl && logoDataUrl.startsWith('data:image')) {
         const logoWidth = 50 // mm
-        // Get actual image dimensions to maintain aspect ratio
         const img = document.createElement('img')
         await new Promise<void>((resolve) => {
           img.onload = () => {
             const aspectRatio = img.height / img.width
-            logoHeight = logoWidth * aspectRatio
-            const logoX = (pageWidth - logoWidth) / 2
-            doc.addImage(logoDataUrl, 'PNG', logoX, 10, logoWidth, logoHeight)
-            titleY = 15 + logoHeight + 8
+            logoInfo.height = logoWidth * aspectRatio
+            logoInfo.x = (pageWidth - logoWidth) / 2
+            logoInfo.titleY = 15 + logoInfo.height + 8
             resolve()
           }
           img.onerror = () => resolve()
@@ -86,16 +160,8 @@ export default function AdminPage() {
         })
       }
     } catch (e) {
-      console.error('Failed to add logo:', e)
+      console.error('Failed to calculate logo dimensions:', e)
     }
-    
-    // Add title below logo (with spacing)
-    doc.setTextColor(255, 255, 255) // White text
-    doc.setFontSize(26)
-    doc.setFont('helvetica', 'bold')
-    const titleText = `${typeFullName} Builder List`
-    const titleWidth = doc.getTextWidth(titleText)
-    doc.text(titleText, (pageWidth - titleWidth) / 2, titleY)
     
     // Prepare table data
     const tableData = filteredBuilders.map(b => [
@@ -108,17 +174,38 @@ export default function AdminPage() {
     ])
 
     // Dark green glass look - consistent color
-    // Using a medium dark green that gives glass effect appearance
     const glassGreen: [number, number, number] = [24, 165, 143] // Medium teal-green for glass effect
 
-    // Calculate table start position based on title
-    const tableStartY = titleY + 10
+    // Calculate table start position
+    // First page has logo/title, subsequent pages start from top
+    const firstPageTableStartY = logoInfo.titleY + 10
+    const subsequentPageTableStartY = 15 // Top margin for pages 2+
+    
+    // Draw background and header on first page before table
+    doc.setFillColor(15, 116, 99) // #0f7463
+    doc.rect(0, 0, pageWidth, pageHeight, 'F')
+    
+    // Add logo on first page
+    if (logoInfo.dataUrl && logoInfo.dataUrl.startsWith('data:image')) {
+      try {
+        doc.addImage(logoInfo.dataUrl, 'PNG', logoInfo.x, 10, logoInfo.width, logoInfo.height)
+      } catch (e) {
+        console.error('Failed to add logo:', e)
+      }
+    }
+    
+    // Add title on first page
+    doc.setTextColor(255, 255, 255) // White text
+    doc.setFontSize(26)
+    doc.setFont('helvetica', 'bold')
+    const titleWidth = doc.getTextWidth(titleText)
+    doc.text(titleText, (pageWidth - titleWidth) / 2, logoInfo.titleY)
     
     // Add table with consistent dark green glass styling
     autoTable(doc, {
       head: [['Name', 'Builder Number', 'Registration Number', 'Email', 'Department', 'Email Sent Date']],
       body: tableData,
-      startY: tableStartY,
+      startY: firstPageTableStartY,
       theme: 'plain',
       styles: {
         fillColor: glassGreen as any, // Consistent glass green for all cells
@@ -146,11 +233,123 @@ export default function AdminPage() {
       alternateRowStyles: {
         fillColor: [22, 178, 156] as any // Slightly different shade for alternate rows (still green)
       },
-      margin: { top: tableStartY, left: 10, right: 10, bottom: 10 }
+      margin: { top: 15, left: 10, right: 10, bottom: 15 },
+      showHead: 'everyPage', // Show header on every page
+      showFoot: 'never',
+      tableWidth: 'auto',
+      didAddPage: function(data: any) {
+        // When autoTable adds a new page, draw background and adjust startY
+        const newPageNum = data.pageNumber
+        isFirstPage = false
+        
+        // Draw background on new page
+        const savedPage = doc.getCurrentPageInfo().pageNumber
+        doc.setPage(newPageNum)
+        doc.setFillColor(15, 116, 99) // #0f7463
+        doc.rect(0, 0, pageWidth, pageHeight, 'F')
+        doc.setPage(savedPage)
+        
+        // Adjust startY for the new page by modifying cursor position
+        if (data.cursor) {
+          data.cursor.y = subsequentPageTableStartY
+        }
+      },
+      didDrawPage: function(data: any) {
+        // Ensure background on all pages by manipulating PDF content stream
+        // This runs after page is drawn, so we prepend background to content
+        const pageNum = data.pageNumber
+        
+        try {
+          const internal = (doc as any).internal
+          if (internal && internal.pages && internal.pages[pageNum - 1]) {
+            const page = internal.pages[pageNum - 1]
+            if (page) {
+              const bgR = 15 / 255
+              const bgG = 116 / 255
+              const bgB = 99 / 255
+              const bgColorStr = `${bgR} ${bgG} ${bgB} rg`
+              
+              // Check if background exists in page content
+              let hasBg = false
+              if (Array.isArray(page) && page[2]) {
+                const content = page[2]
+                if (typeof content === 'string') {
+                  hasBg = content.includes(bgColorStr)
+                } else if (Array.isArray(content)) {
+                  hasBg = content.some((c: any) => 
+                    typeof c === 'string' && c.includes(bgColorStr)
+                  )
+                }
+              }
+              
+              // Add background if missing by prepending to content stream
+              if (!hasBg && Array.isArray(page) && page[2]) {
+                const bgStream = `q\n${bgColorStr}\n0 0 ${pageWidth} ${pageHeight} re\nf\nQ\n`
+                if (typeof page[2] === 'string') {
+                  page[2] = bgStream + page[2]
+                } else if (Array.isArray(page[2])) {
+                  page[2].unshift(bgStream)
+                }
+              }
+            }
+          }
+        } catch (e) {
+          // If internal API fails, draw background manually on the page
+          doc.setPage(pageNum)
+          doc.setFillColor(15, 116, 99)
+          doc.rect(0, 0, pageWidth, pageHeight, 'F')
+        }
+      }
     })
+    
+    // Final pass: Ensure all pages have background using internal PDF API
+    // This is a backup to ensure backgrounds are definitely present
+    try {
+      const internal = (doc as any).internal
+      if (internal && internal.pages) {
+        const bgR = 15 / 255
+        const bgG = 116 / 255
+        const bgB = 99 / 255
+        const bgColorStr = `${bgR} ${bgG} ${bgB} rg`
+        const bgStream = `q\n${bgColorStr}\n0 0 ${pageWidth} ${pageHeight} re\nf\nQ\n`
+        
+        for (let i = 0; i < internal.pages.length; i++) {
+          const page = internal.pages[i]
+          if (page && Array.isArray(page) && page.length > 2) {
+            const content = page[2]
+            let hasBg = false
+            
+            if (typeof content === 'string') {
+              hasBg = content.includes(bgColorStr)
+              if (!hasBg) {
+                page[2] = bgStream + content
+              }
+            } else if (Array.isArray(content)) {
+              hasBg = content.some((c: any) => 
+                typeof c === 'string' && c.includes(bgColorStr)
+              )
+              if (!hasBg) {
+                page[2].unshift(bgStream)
+              }
+            } else if (!content) {
+              page[2] = bgStream
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error in final background pass:', e)
+    }
+
+    // Generate filename
+    let filename = typeLabel.toLowerCase()
+    if (filterDepartment !== 'ALL') {
+      filename += `-${filterDepartment.toLowerCase().replace(/\s+/g, '-')}`
+    }
+    filename += '-builder-list.pdf'
 
     // Save PDF
-    doc.save(`${typeLabel.toLowerCase()}-builder-list.pdf`)
+    doc.save(filename)
   }
 
   const onPreview = async (b: Builder) => {
@@ -258,7 +457,13 @@ export default function AdminPage() {
       <div className="hstack" style={{ gap: 12, flexWrap: 'wrap', width: '100%', marginBottom: '8px' }}>
         <select 
           value={filterType} 
-          onChange={e => setFilterType(e.target.value as 'ALL' | 'MEM' | 'EC' | 'CC' | 'JC')}
+          onChange={e => {
+            setFilterType(e.target.value as 'ALL' | 'MEM' | 'CC' | 'JC')
+            // Reset department filter when type changes to MEM (MEM has no departments)
+            if (e.target.value === 'MEM') {
+              setFilterDepartment('ALL')
+            }
+          }}
           style={{
             flex: '0 1 200px',
             borderRadius: '10px',
@@ -277,8 +482,30 @@ export default function AdminPage() {
           <option value="CC" style={{ background: '#0f7463', color: 'white' }}>CC (Core Committee)</option>
           <option value="JC" style={{ background: '#0f7463', color: 'white' }}>JC (Junior Committee)</option>
         </select>
+        {(filterType === 'EC' || filterType === 'CC' || filterType === 'JC' || filterType === 'ALL') && (
+          <select 
+            value={filterDepartment} 
+            onChange={e => setFilterDepartment(e.target.value)}
+            style={{
+              flex: '0 1 200px',
+              borderRadius: '10px',
+              border: '1px solid rgba(255,255,255,0.2)',
+              background: 'rgba(21, 208, 170, 0.15)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              color: 'white',
+              padding: '10px 12px',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="ALL" style={{ background: '#0f7463', color: 'white' }}>All Departments</option>
+            {departments.map(dept => (
+              <option key={dept} value={dept} style={{ background: '#0f7463', color: 'white' }}>{dept}</option>
+            ))}
+          </select>
+        )}
         <button 
-          onClick={onDownloadData} 
+          onClick={() => setShowDownloadConfirm(true)} 
           disabled={!filteredBuilders.length}
           style={{
             padding: '10px 20px',
@@ -407,6 +634,7 @@ export default function AdminPage() {
                         <option value="Technical Communication" style={{ background: '#0f7463', color: 'white' }}>Technical Communication</option>
                         <option value="Project Development" style={{ background: '#0f7463', color: 'white' }}>Project Development</option>
                         <option value="Logistics" style={{ background: '#0f7463', color: 'white' }}>Logistics</option>
+                        <option value="Directors" style={{ background: '#0f7463', color: 'white' }}>Directors</option>
                       </select>
                     ) : (
                       <span>—</span>
@@ -618,6 +846,42 @@ export default function AdminPage() {
           </div>
         )
       })()}
+
+      {showDownloadConfirm && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1004, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }} onClick={() => setShowDownloadConfirm(false)} />
+          <div style={{
+            background: 'rgba(21, 208, 170, 0.15)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            borderRadius: '20px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            padding: 32,
+            width: '100%',
+            maxWidth: 500,
+            position: 'relative',
+            zIndex: 1005
+          }}>
+            <h2 style={{ margin: '0 0 16px 0', fontSize: 20 }}>Download Builder List</h2>
+            <div style={{ margin: '0 0 24px 0', fontSize: 15, lineHeight: 1.8 }}>
+              <p style={{ margin: '0 0 12px 0' }}>
+                <strong>You are about to download:</strong>
+              </p>
+              <p style={{ margin: '0 0 8px 0', padding: '12px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+                {generateDownloadDescription()}
+              </p>
+              <p style={{ margin: '12px 0 0 0', fontSize: '14px', color: 'rgba(255,255,255,0.8)' }}>
+                Total records: <strong>{filteredBuilders.length}</strong>
+              </p>
+            </div>
+            <div className="hstack" style={{ gap: 12, justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowDownloadConfirm(false)} style={{ padding: '8px 16px' }}>Cancel</button>
+              <button onClick={onDownloadData} style={{ padding: '8px 16px', background: 'rgba(21, 208, 170, 0.3)' }}>Download PDF</button>
+            </div>
+          </div>
+        </div>
+      )}
       <style jsx global>{`
         .spin {
           animation: spin 1s linear infinite;
@@ -817,5 +1081,6 @@ function renderCardAsDataUrl(name: string, number: number, type: string = 'MEM')
     }
   })
 }
+
 
 

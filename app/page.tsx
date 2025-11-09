@@ -214,6 +214,7 @@ export default function HomePage() {
               <option value="Technical Communication" style={{ background: '#0f7463', color: 'white' }}>Technical Communication</option>
               <option value="Project Development" style={{ background: '#0f7463', color: 'white' }}>Project Development</option>
               <option value="Logistics" style={{ background: '#0f7463', color: 'white' }}>Logistics</option>
+              <option value="Directors" style={{ background: '#0f7463', color: 'white' }}>Directors</option>
             </select>
           )}
           

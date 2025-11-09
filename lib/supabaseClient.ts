@@ -31,6 +31,6 @@ export type BuilderRecord = {
 
 export type MemberType = 'MEM' | 'EC' | 'CC' | 'JC'
 
-export type Department = 'Finance' | 'Production' | 'Media & Design' | 'Human Resources' | 'Technical Projects' | 'Technical Communication' | 'Project Development' | 'Logistics'
+export type Department = 'Finance' | 'Production' | 'Media & Design' | 'Human Resources' | 'Technical Projects' | 'Technical Communication' | 'Project Development' | 'Logistics' | 'Directors'
 
 
