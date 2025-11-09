@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabaseClient'
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> | { id: string } }) {
   const body = await req.json()
   const { name, type, registration_number, email, builder_number, department } = body || {}
-  const id = params.id
+  // Handle both Next.js 14 (async params) and Next.js 13 (sync params)
+  const resolvedParams = await Promise.resolve(params)
+  const id = resolvedParams.id
 
   // Get current builder to check existing values
   const { data: current } = await supabase
@@ -84,8 +86,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ builder: data })
 }
 
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
-  const id = params.id
+export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> | { id: string } }) {
+  // Handle both Next.js 14 (async params) and Next.js 13 (sync params)
+  const resolvedParams = await Promise.resolve(params)
+  const id = resolvedParams.id
 
   const { error } = await supabase
     .from('builders')

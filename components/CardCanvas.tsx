@@ -65,9 +65,10 @@ export default function CardCanvas({ studentName, builderNumber, type = 'MEM', w
       // QR code at right
       const qrSize = 230
       const origin = typeof window !== 'undefined' ? window.location.origin : ''
+      // Include type in verification URL for accurate lookup
       const verifyUrl = origin
-        ? new URL(`/verify?builder=${encodeURIComponent(builderNumber)}`, origin).toString()
-        : `/verify?builder=${encodeURIComponent(builderNumber)}`
+        ? new URL(`/verify?builder=${encodeURIComponent(builderNumber)}&type=${encodeURIComponent(type)}`, origin).toString()
+        : `/verify?builder=${encodeURIComponent(builderNumber)}&type=${encodeURIComponent(type)}`
       const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: qrSize })
       const img = new Image()
       await new Promise<void>((resolve) => {

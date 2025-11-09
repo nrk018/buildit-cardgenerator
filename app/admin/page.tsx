@@ -693,9 +693,9 @@ export default function AdminPage() {
 <h2 style="font-size:24px;font-weight:700;margin:40px 0 20px 0;color:#000000;">Important Security Notice</h2>
 <p style="font-size:16px;margin:0 0 40px 0;color:#333333;">This card is unique to you (Builder #${b.builder_number}). Please do not share your card with anyone else. Keep it secure and present it at events to avail your benefits.</p>
 
-<h2 style="font-size:24px;font-weight:700;margin:40px 0 20px 0;color:#000000;">Verify Your Card</h2>
-<p style="font-size:16px;margin:0 0 10px 0;color:#333333;">Scan the QR code on your card or visit:</p>
-<p style="font-size:16px;margin:0 0 40px 0;"><a href="${window.location.origin}/verify?builder=${encodeURIComponent(b.builder_number)}" style="color:#0000EE;text-decoration:underline;">${window.location.origin}/verify?builder=${encodeURIComponent(b.builder_number)}</a></p>
+     <h2 style="font-size:24px;font-weight:700;margin:40px 0 20px 0;color:#000000;">Verify Your Card</h2>
+     <p style="font-size:16px;margin:0 0 10px 0;color:#333333;">Scan the QR code on your card or visit:</p>
+     <p style="font-size:16px;margin:0 0 40px 0;"><a href="${window.location.origin}/verify?builder=${encodeURIComponent(b.builder_number)}&type=${encodeURIComponent(b.type || 'MEM')}" style="color:#0000EE;text-decoration:underline;">${window.location.origin}/verify?builder=${encodeURIComponent(b.builder_number)}&type=${encodeURIComponent(b.type || 'MEM')}</a></p>
 
 <h2 style="font-size:24px;font-weight:700;margin:40px 0 20px 0;color:#000000;">How to Use Your Card</h2>
 <ul style="font-size:16px;margin:0 0 40px 0;padding-left:25px;color:#333333;">
@@ -793,7 +793,7 @@ export default function AdminPage() {
             </div>
             <div className="vstack" style={{ gap: 12 }}>
               <button onClick={() => preview && saveAs(preview, latestPngName)} disabled={!preview} style={{ width: '100%', padding: '12px' }}>Download PNG</button>
-              <a href={`/verify?builder=${previewNum}`} target="_blank" rel="noreferrer" style={{ textAlign: 'center', display: 'block', padding: '12px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', textDecoration: 'none' }}>Open Verification Page</a>
+              <a href={`/verify?builder=${previewNum}&type=${encodeURIComponent(previewType)}`} target="_blank" rel="noreferrer" style={{ textAlign: 'center', display: 'block', padding: '12px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', textDecoration: 'none' }}>Open Verification Page</a>
             </div>
           </div>
         </div>
@@ -1027,9 +1027,10 @@ function renderCardAsDataUrl(name: string, number: number, type: string = 'MEM')
         // QR code with timeout
         const qrSize = 230
         const origin = typeof window !== 'undefined' ? window.location.origin : ''
+        // Include type in verification URL for accurate lookup
         const verifyUrl = origin
-          ? new URL(`/verify?builder=${encodeURIComponent(number)}`, origin).toString()
-          : `/verify?builder=${encodeURIComponent(number)}`
+          ? new URL(`/verify?builder=${encodeURIComponent(number)}&type=${encodeURIComponent(type)}`, origin).toString()
+          : `/verify?builder=${encodeURIComponent(number)}&type=${encodeURIComponent(type)}`
         
         const qrDataUrl = await Promise.race([
           QRCode.toDataURL(verifyUrl, { margin: 1, width: qrSize }),

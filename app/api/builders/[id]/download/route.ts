@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabaseClient'
 
-export async function POST(_: Request, { params }: { params: { id: string } }) {
-  const id = params.id
+export async function POST(_: Request, { params }: { params: Promise<{ id: string }> | { id: string } }) {
+  // Handle both Next.js 14 (async params) and Next.js 13 (sync params)
+  const resolvedParams = await Promise.resolve(params)
+  const id = resolvedParams.id
   const { data, error } = await supabase
     .from('builders')
     .update({ downloaded_at: new Date().toISOString(), download_count: (null as any) })
