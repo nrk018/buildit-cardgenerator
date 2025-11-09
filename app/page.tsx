@@ -1,5 +1,5 @@
 "use client"
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import CardCanvas from '@/components/CardCanvas'
 import { saveAs } from 'file-saver'
 import Image from 'next/image'
@@ -15,8 +15,34 @@ export default function HomePage() {
   const [dataUrl, setDataUrl] = useState<string | null>(null)
   const [builderId, setBuilderId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const [loadingNextNumber, setLoadingNextNumber] = useState(false)
 
   const builderNumber = useMemo(() => Number(number) || 0, [number])
+
+  // Fetch next available builder number for the selected type
+  const fetchNextBuilderNumber = React.useCallback(async (memberType: 'MEM' | 'EC' | 'CC' | 'JC') => {
+    setLoadingNextNumber(true)
+    try {
+      const res = await fetch('/api/builders/next-number?type=' + memberType)
+      if (res.ok) {
+        const data = await res.json()
+        setNumber(data.nextNumber || 1)
+      } else {
+        // If API fails, just set to 1
+        setNumber(1)
+      }
+    } catch (error) {
+      console.error('Failed to fetch next builder number:', error)
+      setNumber(1)
+    } finally {
+      setLoadingNextNumber(false)
+    }
+  }, [])
+
+  // Fetch next number on component mount and when type changes
+  useEffect(() => {
+    fetchNextBuilderNumber(type)
+  }, [type, fetchNextBuilderNumber])
 
   const onDownload = () => {
     if (!dataUrl) return
@@ -206,13 +232,50 @@ export default function HomePage() {
             style={{ width: '100%', boxSizing: 'border-box' }}
           />
           
-          <input 
-            placeholder="Builder number (blank = auto)" 
-            value={number} 
-            onChange={e => setNumber(e.target.value as any)} 
-            type="number"
-            style={{ width: '100%', boxSizing: 'border-box' }}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input 
+                placeholder="Builder number" 
+                value={number} 
+                onChange={e => setNumber(e.target.value as any)} 
+                type="number"
+                disabled={loadingNextNumber}
+                style={{ 
+                  flex: 1,
+                  boxSizing: 'border-box',
+                  opacity: loadingNextNumber ? 0.6 : 1,
+                  cursor: loadingNextNumber ? 'wait' : 'text'
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fetchNextBuilderNumber(type)}
+                disabled={loadingNextNumber}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  background: 'rgba(255,255,255,0.1)',
+                  color: 'white',
+                  cursor: loadingNextNumber ? 'wait' : 'pointer',
+                  fontSize: '12px',
+                  whiteSpace: 'nowrap',
+                  opacity: loadingNextNumber ? 0.6 : 1
+                }}
+                title="Refresh next number"
+              >
+                🔄
+              </button>
+            </div>
+            {loadingNextNumber && (
+              <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Loading next number...</span>
+            )}
+            {!loadingNextNumber && number && (
+              <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>
+                Next available: {type}{number}
+              </span>
+            )}
+          </div>
           
           {!builderId ? (
             <button 
@@ -250,19 +313,43 @@ export default function HomePage() {
                 const json = await res.json()
                 setBuilderId(json.builder.id)
                 setNumber(json.builder.builder_number)
+                // Refresh next number for future use (in case user wants to create another)
+                fetchNextBuilderNumber(type)
               }}
               style={{ width: '100%', marginTop: '8px' }}
             >
               {creating ? 'Creating...' : 'Create builder'}
             </button>
           ) : (
-            <button 
-              onClick={onDownload} 
-              disabled={!dataUrl}
-              style={{ width: '100%', marginTop: '8px' }}
-            >
-              Download PNG
-            </button>
+            <>
+              <button 
+                onClick={onDownload} 
+                disabled={!dataUrl}
+                style={{ width: '100%', marginTop: '8px' }}
+              >
+                Download PNG
+              </button>
+              <button 
+                onClick={() => {
+                  setBuilderId(null)
+                  setName('')
+                  setReg('')
+                  setEmail('')
+                  setDepartment('')
+                  setDataUrl(null)
+                  // Refresh next number for the current type
+                  fetchNextBuilderNumber(type)
+                }}
+                style={{ 
+                  width: '100%', 
+                  marginTop: '8px',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.2)'
+                }}
+              >
+                Create Another
+              </button>
+            </>
           )}
         </div>
       </div>
