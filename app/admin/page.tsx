@@ -237,42 +237,27 @@ export default function AdminPage() {
       showHead: 'everyPage', // Show header on every page
       showFoot: 'never',
       tableWidth: 'auto',
-      didAddPage: function(data: any) {
-        // When autoTable adds a new page, draw background and adjust startY
-        const newPageNum = data.pageNumber
-        isFirstPage = false
-        
-        // Draw background on new page
-        const savedPage = doc.getCurrentPageInfo().pageNumber
-        doc.setPage(newPageNum)
-        doc.setFillColor(15, 116, 99) // #0f7463
-        doc.rect(0, 0, pageWidth, pageHeight, 'F')
-        doc.setPage(savedPage)
-        
-        // Adjust startY for the new page by modifying cursor position
-        if (data.cursor) {
-          data.cursor.y = subsequentPageTableStartY
-        }
-      },
       didDrawPage: function(data: any) {
-        // Ensure background on all pages by manipulating PDF content stream
-        // This runs after page is drawn, so we prepend background to content
+        // This callback runs after each page is drawn
+        // For pages after the first, we need to ensure background exists
         const pageNum = data.pageNumber
         
-        try {
-          const internal = (doc as any).internal
-          if (internal && internal.pages && internal.pages[pageNum - 1]) {
-            const page = internal.pages[pageNum - 1]
-            if (page) {
-              const bgR = 15 / 255
-              const bgG = 116 / 255
-              const bgB = 99 / 255
-              const bgColorStr = `${bgR} ${bgG} ${bgB} rg`
-              
-              // Check if background exists in page content
-              let hasBg = false
-              if (Array.isArray(page) && page[2]) {
+        // For pages 2+, draw background using PDF content stream manipulation
+        if (pageNum > 1) {
+          try {
+            const internal = (doc as any).internal
+            if (internal && internal.pages && internal.pages[pageNum - 1]) {
+              const page = internal.pages[pageNum - 1]
+              if (page && Array.isArray(page) && page.length > 2) {
+                const bgR = 15 / 255
+                const bgG = 116 / 255
+                const bgB = 99 / 255
+                const bgColorStr = `${bgR} ${bgG} ${bgB} rg`
+                const bgStream = `q\n${bgColorStr}\n0 0 ${pageWidth} ${pageHeight} re\nf\nQ\n`
+                
+                // Check if background already exists
                 const content = page[2]
+                let hasBg = false
                 if (typeof content === 'string') {
                   hasBg = content.includes(bgColorStr)
                 } else if (Array.isArray(content)) {
@@ -280,24 +265,22 @@ export default function AdminPage() {
                     typeof c === 'string' && c.includes(bgColorStr)
                   )
                 }
-              }
-              
-              // Add background if missing by prepending to content stream
-              if (!hasBg && Array.isArray(page) && page[2]) {
-                const bgStream = `q\n${bgColorStr}\n0 0 ${pageWidth} ${pageHeight} re\nf\nQ\n`
-                if (typeof page[2] === 'string') {
-                  page[2] = bgStream + page[2]
-                } else if (Array.isArray(page[2])) {
-                  page[2].unshift(bgStream)
+                
+                // Prepend background to content stream if missing
+                if (!hasBg) {
+                  if (typeof content === 'string') {
+                    page[2] = bgStream + content
+                  } else if (Array.isArray(content)) {
+                    page[2].unshift(bgStream)
+                  } else {
+                    page[2] = bgStream
+                  }
                 }
               }
             }
+          } catch (e) {
+            console.error('Error adding background in didDrawPage:', e)
           }
-        } catch (e) {
-          // If internal API fails, draw background manually on the page
-          doc.setPage(pageNum)
-          doc.setFillColor(15, 116, 99)
-          doc.rect(0, 0, pageWidth, pageHeight, 'F')
         }
       }
     })
