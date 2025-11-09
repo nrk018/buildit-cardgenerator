@@ -21,6 +21,8 @@ export default function AdminPage() {
   const [previewType, setPreviewType] = useState<string>('MEM')
   const [sendingEmail, setSendingEmail] = useState<string | null>(null)
   const [emailSuccess, setEmailSuccess] = useState<string | null>(null)
+  const [bulkSendingType, setBulkSendingType] = useState<'EC' | 'CC' | 'JC' | null>(null)
+  const [bulkSendProgress, setBulkSendProgress] = useState<{ sent: number; total: number; errors: number } | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [editType, setEditType] = useState<'MEM' | 'EC' | 'CC' | 'JC'>('MEM')
@@ -392,6 +394,142 @@ export default function AdminPage() {
     fetchBuilders()
   }
 
+  const sendBulkEmails = async (type: 'EC' | 'CC' | 'JC') => {
+    // Get all builders of this type who have email addresses
+    const allBuildersWithEmail = builders.filter(b => 
+      b.type === type && 
+      b.email && 
+      b.email.trim() !== ''
+    )
+
+    if (allBuildersWithEmail.length === 0) {
+      alert(`No ${type} members with email addresses found.`)
+      return
+    }
+
+    // Check if any have already received emails
+    const alreadySent = allBuildersWithEmail.filter(b => b.email_sent_at)
+    if (alreadySent.length > 0) {
+      if (!confirm(`${alreadySent.length} ${type} member(s) have already received emails. Send to all ${allBuildersWithEmail.length} ${type} members anyway?`)) {
+        return
+      }
+    } else {
+      if (!confirm(`Send emails to ${allBuildersWithEmail.length} ${type} member(s)?`)) {
+        return
+      }
+    }
+
+    const buildersToEmail = allBuildersWithEmail
+
+    setBulkSendingType(type)
+    setBulkSendProgress({ sent: 0, total: buildersToEmail.length, errors: 0 })
+
+    let sent = 0
+    let errors = 0
+
+    for (const builder of buildersToEmail) {
+      if (!builder.id || !builder.email) continue
+
+      try {
+        const dataUrl = await renderCardAsDataUrl(builder.name, builder.builder_number, builder.type || 'MEM')
+        const base64 = dataUrl.split(',')[1]
+        const html = `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#000000;">
+<h1 style="font-size:28px;font-weight:700;margin:0 0 20px 0;">Welcome to BUILDIT 🎉</h1>
+
+<p style="font-size:18px;margin:0 0 10px 0;">Hi ${builder.name},</p>
+
+<p style="font-size:18px;margin:0 0 30px 0;">Congratulations! You're now an official BUILDIT member. Your exclusive builder card is ready!</p>
+
+<p style="font-size:16px;margin:0 0 40px 0;">Your builder card image is attached to this email. Please download and save it to your device.</p>
+
+<h2 style="font-size:24px;font-weight:700;margin:40px 0 20px 0;color:#000000;">Your Builder Card Perks</h2>
+
+<div style="margin:0 0 30px 0;">
+<h3 style="font-size:20px;font-weight:600;margin:0 0 8px 0;color:#000000;">Free Access to Minor Events</h3>
+<p style="font-size:16px;margin:0 0 0 0;color:#333333;">Attend workshops, networking sessions, and club meetups at no cost</p>
+</div>
+
+<div style="margin:0 0 30px 0;">
+<h3 style="font-size:20px;font-weight:600;margin:0 0 8px 0;color:#000000;">Discounted Entry for Major Events</h3>
+<p style="font-size:16px;margin:0 0 0 0;color:#333333;">Get exclusive discounts on conferences, hackathons, and flagship events</p>
+</div>
+
+<div style="margin:0 0 30px 0;">
+<h3 style="font-size:20px;font-weight:600;margin:0 0 8px 0;color:#000000;">Priority Access & Early Bird Benefits</h3>
+<p style="font-size:16px;margin:0 0 0 0;color:#333333;">Be the first to register for limited-seat events and competitions</p>
+</div>
+
+<div style="margin:0 0 40px 0;">
+<h3 style="font-size:20px;font-weight:600;margin:0 0 8px 0;color:#000000;">Exclusive Networking Opportunities</h3>
+<p style="font-size:16px;margin:0 0 0 0;color:#333333;">Connect with industry experts, mentors, and fellow builders</p>
+</div>
+
+<h2 style="font-size:24px;font-weight:700;margin:40px 0 20px 0;color:#000000;">Important Security Notice</h2>
+<p style="font-size:16px;margin:0 0 40px 0;color:#333333;">This card is unique to you (Builder #${builder.type || 'MEM'}${builder.builder_number}). Please do not share your card with anyone else. Keep it secure and present it at events to avail your benefits.</p>
+
+<h2 style="font-size:24px;font-weight:700;margin:40px 0 20px 0;color:#000000;">Verify Your Card</h2>
+<p style="font-size:16px;margin:0 0 10px 0;color:#333333;">Scan the QR code on your card or visit:</p>
+<p style="font-size:16px;margin:0 0 40px 0;"><a href="${typeof window !== 'undefined' ? window.location.origin : ''}/verify?builder=${encodeURIComponent(builder.builder_number)}&type=${encodeURIComponent(builder.type || 'MEM')}" style="color:#0000EE;text-decoration:underline;">${typeof window !== 'undefined' ? window.location.origin : ''}/verify?builder=${encodeURIComponent(builder.builder_number)}&type=${encodeURIComponent(builder.type || 'MEM')}</a></p>
+
+<h2 style="font-size:24px;font-weight:700;margin:40px 0 20px 0;color:#000000;">How to Use Your Card</h2>
+<ul style="font-size:16px;margin:0 0 40px 0;padding-left:25px;color:#333333;">
+<li style="margin:0 0 10px 0;">Save the card image to your phone for easy access</li>
+<li style="margin:0 0 10px 0;">Present your card at event registration desks</li>
+<li style="margin:0 0 10px 0;">Show the QR code when checking in at events</li>
+<li style="margin:0 0 0 0;">Keep a digital copy backed up in your gallery</li>
+</ul>
+
+<h2 style="font-size:24px;font-weight:700;margin:40px 0 20px 0;color:#000000;">Ready to Build Something That Matters?</h2>
+<p style="font-size:16px;margin:0 0 20px 0;color:#333333;">We're excited to have you on board! Stay tuned for upcoming events and opportunities. Follow us on social media to stay updated.</p>
+
+<p style="font-size:16px;margin:30px 0 0 0;color:#666666;">The BUILDIT Team<br>builditmuj.club</p>
+</div>`
+
+        const res = await fetch('/api/email/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: builder.email,
+            subject: `Your BUILDIT Builder Card (${builder.type || 'MEM'}${builder.builder_number})`,
+            html,
+            attachmentName: `builder-${builder.type || 'MEM'}${builder.builder_number}.png`,
+            attachmentBase64: base64,
+            builderId: builder.id
+          })
+        })
+
+        if (res.ok) {
+          sent++
+        } else {
+          errors++
+          console.error(`Failed to send email to ${builder.name} (${builder.email}):`, await res.json().catch(() => ({})))
+        }
+      } catch (err: any) {
+        errors++
+        console.error(`Error sending email to ${builder.name}:`, err)
+      }
+
+      // Update progress
+      setBulkSendProgress({ sent, total: buildersToEmail.length, errors })
+
+      // Small delay between emails to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 500))
+    }
+
+    // Refresh builders list to update email_sent_at timestamps
+    fetchBuilders()
+
+    // Show completion message
+    if (errors === 0) {
+      alert(`Successfully sent emails to ${sent} ${type} member(s)!`)
+    } else {
+      alert(`Sent emails to ${sent} ${type} member(s). ${errors} error(s) occurred.`)
+    }
+
+    setBulkSendingType(null)
+    setBulkSendProgress(null)
+  }
+
   const latestPngName = useMemo(() => `builder-${previewType}${previewNum}.png`, [previewNum, previewType])
 
   return (
@@ -502,6 +640,85 @@ export default function AdminPage() {
           }}
         >
           Download Data
+        </button>
+        {/* Bulk Email Buttons */}
+        <button
+          onClick={() => sendBulkEmails('EC')}
+          disabled={!!bulkSendingType || builders.filter(b => b.type === 'EC' && b.email).length === 0}
+          style={{
+            padding: '10px 20px',
+            borderRadius: '10px',
+            border: '1px solid rgba(255,255,255,0.2)',
+            background: bulkSendingType === 'EC' ? 'rgba(21, 208, 170, 0.5)' : 'rgba(21, 208, 170, 0.3)',
+            color: 'white',
+            cursor: bulkSendingType || builders.filter(b => b.type === 'EC' && b.email).length === 0 ? 'not-allowed' : 'pointer',
+            opacity: bulkSendingType || builders.filter(b => b.type === 'EC' && b.email).length === 0 ? 0.6 : 1,
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          {bulkSendingType === 'EC' ? (
+            <>
+              <Loader2 size={16} className="spin" />
+              {bulkSendProgress && `Sending... ${bulkSendProgress.sent}/${bulkSendProgress.total}`}
+            </>
+          ) : (
+            `📧 Email All EC (${builders.filter(b => b.type === 'EC' && b.email).length})`
+          )}
+        </button>
+        <button
+          onClick={() => sendBulkEmails('CC')}
+          disabled={!!bulkSendingType || builders.filter(b => b.type === 'CC' && b.email).length === 0}
+          style={{
+            padding: '10px 20px',
+            borderRadius: '10px',
+            border: '1px solid rgba(255,255,255,0.2)',
+            background: bulkSendingType === 'CC' ? 'rgba(21, 208, 170, 0.5)' : 'rgba(21, 208, 170, 0.3)',
+            color: 'white',
+            cursor: bulkSendingType || builders.filter(b => b.type === 'CC' && b.email).length === 0 ? 'not-allowed' : 'pointer',
+            opacity: bulkSendingType || builders.filter(b => b.type === 'CC' && b.email).length === 0 ? 0.6 : 1,
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          {bulkSendingType === 'CC' ? (
+            <>
+              <Loader2 size={16} className="spin" />
+              {bulkSendProgress && `Sending... ${bulkSendProgress.sent}/${bulkSendProgress.total}`}
+            </>
+          ) : (
+            `📧 Email All CC (${builders.filter(b => b.type === 'CC' && b.email).length})`
+          )}
+        </button>
+        <button
+          onClick={() => sendBulkEmails('JC')}
+          disabled={!!bulkSendingType || builders.filter(b => b.type === 'JC' && b.email).length === 0}
+          style={{
+            padding: '10px 20px',
+            borderRadius: '10px',
+            border: '1px solid rgba(255,255,255,0.2)',
+            background: bulkSendingType === 'JC' ? 'rgba(21, 208, 170, 0.5)' : 'rgba(21, 208, 170, 0.3)',
+            color: 'white',
+            cursor: bulkSendingType || builders.filter(b => b.type === 'JC' && b.email).length === 0 ? 'not-allowed' : 'pointer',
+            opacity: bulkSendingType || builders.filter(b => b.type === 'JC' && b.email).length === 0 ? 0.6 : 1,
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          {bulkSendingType === 'JC' ? (
+            <>
+              <Loader2 size={16} className="spin" />
+              {bulkSendProgress && `Sending... ${bulkSendProgress.sent}/${bulkSendProgress.total}`}
+            </>
+          ) : (
+            `📧 Email All JC (${builders.filter(b => b.type === 'JC' && b.email).length})`
+          )}
         </button>
       </div>
 
