@@ -3,9 +3,11 @@ import React, { useMemo, useState, useEffect } from 'react'
 import CardCanvas from '@/components/CardCanvas'
 import { saveAs } from 'file-saver'
 import Image from 'next/image'
+import Link from 'next/link'
 import logoImage from '@/components/logobuildit.png'
 
 export default function HomePage() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
   const [name, setName] = useState('')
   const [type, setType] = useState<'MEM' | 'EC' | 'CC' | 'JC'>('MEM')
   const [number, setNumber] = useState<number | ''>('')
@@ -39,13 +41,15 @@ export default function HomePage() {
     }
   }, [])
 
-  // Validate session on mount
+  // Validate session on mount - prevent rendering until confirmed
   useEffect(() => {
     const validateSession = async () => {
       const res = await fetch('/api/admin/validate', { credentials: 'include' })
       if (!res.ok) {
         window.location.href = '/login?next=/'
+        return
       }
+      setIsAuthenticated(true)
     }
     validateSession()
   }, [])
@@ -67,6 +71,42 @@ export default function HomePage() {
   const onLogout = async () => {
     await fetch('/api/admin/logout', { method: 'POST', credentials: 'include' })
     window.location.href = '/login'
+  }
+
+  // Don't render anything until authentication is confirmed
+  if (isAuthenticated === null) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#0f7463',
+        gap: '32px',
+        padding: '24px'
+      }}>
+        <Image 
+          src={logoImage} 
+          alt="BUILDIT Logo" 
+          width={200} 
+          height={67} 
+          style={{ 
+            height: 'auto', 
+            width: 'auto', 
+            maxWidth: '300px',
+            objectFit: 'contain' 
+          }} 
+          priority
+        />
+        <div className="animate-spin" style={{ width: '48px', height: '48px', border: '4px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%' }} />
+      </div>
+    )
+  }
+
+  // Only render if authenticated
+  if (!isAuthenticated) {
+    return null
   }
 
   return (
@@ -92,7 +132,7 @@ export default function HomePage() {
           <h1 className="brand-title" style={{ margin: 0, fontSize: '22px', whiteSpace: 'nowrap' }}>Card Generator</h1>
         </div>
         <div className="hstack" style={{ gap: 8, flex: '0 0 auto', flexShrink: 0 }}>
-          <a href="/admin" className="navbar-link" style={{
+          <Link href="/admin" className="navbar-link" style={{
             padding: '6px 12px',
             borderRadius: '8px',
             background: 'rgba(255,255,255,0.1)',
@@ -101,7 +141,7 @@ export default function HomePage() {
             border: '1px solid rgba(255,255,255,0.2)',
             fontSize: '14px',
             whiteSpace: 'nowrap'
-          }}>Admin</a>
+          }}>Admin</Link>
           <button onClick={onLogout} className="navbar-button" style={{
             padding: '6px 12px',
             borderRadius: '8px',

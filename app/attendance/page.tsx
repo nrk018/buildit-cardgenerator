@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import { Loader2, CheckCircle2, XCircle, Plus, Trash2, Download } from 'lucide-react'
 import Image from 'next/image'
+import Link from 'next/link'
 import logoImage from '@/components/logobuildit.png'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -41,6 +42,7 @@ type Allocation = {
 }
 
 export default function AttendancePage() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
   const [builders, setBuilders] = useState<Builder[]>([])
   const [events, setEvents] = useState<Event[]>([])
   const [selectedEventType, setSelectedEventType] = useState<'desk_setup' | 'night' | 'perm' | 'gbm'>('desk_setup')
@@ -611,15 +613,17 @@ export default function AttendancePage() {
   }
 
   useEffect(() => {
-    // Validate session on mount
+    // Validate session on mount - prevent rendering until confirmed
     const validateSession = async () => {
       const res = await fetch('/api/admin/validate', { credentials: 'include' })
       if (!res.ok) {
         window.location.href = '/login?next=/attendance'
+        return
       }
+      setIsAuthenticated(true)
+      fetchBuilders()
     }
     validateSession()
-    fetchBuilders()
   }, [])
 
   useEffect(() => {
@@ -2792,6 +2796,42 @@ export default function AttendancePage() {
     window.location.href = '/login'
   }
 
+  // Don't render anything until authentication is confirmed
+  if (isAuthenticated === null) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#0f7463',
+        gap: '32px',
+        padding: '24px'
+      }}>
+        <Image 
+          src={logoImage} 
+          alt="BUILDIT Logo" 
+          width={200} 
+          height={67} 
+          style={{ 
+            height: 'auto', 
+            width: 'auto', 
+            maxWidth: '300px',
+            objectFit: 'contain' 
+          }} 
+          priority
+        />
+        <Loader2 className="animate-spin" size={48} color="white" />
+      </div>
+    )
+  }
+
+  // Only render if authenticated
+  if (!isAuthenticated) {
+    return null
+  }
+
   return (
     <div className="vstack" style={{ gap: 18, width: '100%', padding: '24px', maxWidth: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
       <div style={{
@@ -2815,7 +2855,7 @@ export default function AttendancePage() {
           <h1 className="brand-title" style={{ margin: 0, fontSize: '22px', whiteSpace: 'nowrap' }}>Attendance Management</h1>
         </div>
         <div className="hstack" style={{ gap: 8, flex: '0 0 auto', flexShrink: 0 }}>
-          <a href="/admin" className="navbar-link" style={{
+          <Link href="/admin" className="navbar-link" style={{
             padding: '6px 12px',
             borderRadius: '8px',
             background: 'rgba(255,255,255,0.1)',
@@ -2824,8 +2864,8 @@ export default function AttendancePage() {
             border: '1px solid rgba(255,255,255,0.2)',
             fontSize: '14px',
             whiteSpace: 'nowrap'
-          }}>Admin</a>
-          <a href="/" className="navbar-link" style={{
+          }}>Admin</Link>
+          <Link href="/" className="navbar-link" style={{
             padding: '6px 12px',
             borderRadius: '8px',
             background: 'rgba(255,255,255,0.1)',
@@ -2834,7 +2874,7 @@ export default function AttendancePage() {
             border: '1px solid rgba(255,255,255,0.2)',
             fontSize: '14px',
             whiteSpace: 'nowrap'
-          }}>Generator</a>
+          }}>Generator</Link>
           <button onClick={onLogout} className="navbar-button" style={{
             padding: '6px 12px',
             borderRadius: '8px',

@@ -43,7 +43,8 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
         const href = anchor.getAttribute('href')
         // Check if it's an internal link
         if (href && href.startsWith('/') && !href.startsWith('/api') && !href.includes('#')) {
-          const currentPath = window.location.pathname
+          // Use current pathname from hook for better Next.js integration
+          const currentPath = pathname
           // Check if it's a different route
           if (href !== currentPath) {
             loadingStartTime.current = Date.now()
@@ -62,7 +63,7 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(timeoutRef.current)
       }
     }
-  }, [])
+  }, [pathname])
 
   // Also handle browser back/forward
   useEffect(() => {

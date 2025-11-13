@@ -4,6 +4,7 @@ import { saveAs } from 'file-saver'
 import CardCanvas from '@/components/CardCanvas'
 import { Loader2, CheckCircle2 } from 'lucide-react'
 import Image from 'next/image'
+import Link from 'next/link'
 import logoImage from '@/components/logobuildit.png'
 import QRCode from 'qrcode'
 import jsPDF from 'jspdf'
@@ -12,6 +13,7 @@ import autoTable from 'jspdf-autotable'
 type Builder = { id?: string; name: string; builder_number: number; type: string; registration_number?: string | null; email?: string | null; department?: string | null; downloaded_at?: string | null; email_sent_at?: string | null }
 
 export default function AdminPage() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
   const [builders, setBuilders] = useState<Builder[]>([])
   const [filterType, setFilterType] = useState<'ALL' | 'MEM' | 'EC' | 'CC' | 'JC'>('ALL')
   const [filterDepartment, setFilterDepartment] = useState<string>('ALL')
@@ -39,15 +41,17 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
-    // Validate session on mount
+    // Validate session on mount - prevent rendering until confirmed
     const validateSession = async () => {
       const res = await fetch('/api/admin/validate', { credentials: 'include' })
       if (!res.ok) {
         window.location.href = '/login?next=/admin'
+        return
       }
+      setIsAuthenticated(true)
+      fetchBuilders()
     }
     validateSession()
-    fetchBuilders()
   }, [])
 
   const onLogout = async () => {
@@ -542,6 +546,42 @@ export default function AdminPage() {
 
   const latestPngName = useMemo(() => `builder-${previewType}${previewNum}.png`, [previewNum, previewType])
 
+  // Don't render anything until authentication is confirmed
+  if (isAuthenticated === null) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#0f7463',
+        gap: '32px',
+        padding: '24px'
+      }}>
+        <Image 
+          src={logoImage} 
+          alt="BUILDIT Logo" 
+          width={200} 
+          height={67} 
+          style={{ 
+            height: 'auto', 
+            width: 'auto', 
+            maxWidth: '300px',
+            objectFit: 'contain' 
+          }} 
+          priority
+        />
+        <Loader2 className="animate-spin" size={48} color="white" />
+      </div>
+    )
+  }
+
+  // Only render if authenticated
+  if (!isAuthenticated) {
+    return null
+  }
+
   return (
     <div className="vstack" style={{ gap: 18, width: '100%', padding: '24px', maxWidth: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
       <div style={{
@@ -565,7 +605,7 @@ export default function AdminPage() {
           <h1 className="brand-title" style={{ margin: 0, fontSize: '22px', whiteSpace: 'nowrap' }}>Admin Panel</h1>
         </div>
         <div className="hstack" style={{ gap: 8, flex: '0 0 auto', flexShrink: 0 }}>
-          <a href="/" className="navbar-link" style={{
+          <Link href="/" className="navbar-link" style={{
             padding: '6px 12px',
             borderRadius: '8px',
             background: 'rgba(255,255,255,0.1)',
@@ -574,8 +614,8 @@ export default function AdminPage() {
             border: '1px solid rgba(255,255,255,0.2)',
             fontSize: '14px',
             whiteSpace: 'nowrap'
-          }}>Generator</a>
-          <a href="/attendance" className="navbar-link" style={{
+          }}>Generator</Link>
+          <Link href="/attendance" className="navbar-link" style={{
             padding: '6px 12px',
             borderRadius: '8px',
             background: 'rgba(255,255,255,0.1)',
@@ -584,7 +624,7 @@ export default function AdminPage() {
             border: '1px solid rgba(255,255,255,0.2)',
             fontSize: '14px',
             whiteSpace: 'nowrap'
-          }}>Attendance</a>
+          }}>Attendance</Link>
           <button onClick={onLogout} className="navbar-button" style={{
             padding: '6px 12px',
             borderRadius: '8px',
