@@ -18,24 +18,24 @@ export const Loader = () => {
           animation: loader-rotate 3s infinite linear;
         }
       `}</style>
-      <div className="wrapper-grid" style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(7, 1fr)',
-        gap: '8px',
-        perspective: '1000px'
-      }}>
-        {['L', 'O', 'A', 'D', 'I', 'N', 'G'].map((letter, index) => (
-          <div 
-            key={letter}
+    <div className="wrapper-grid" style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(7, 1fr)',
+      gap: '8px',
+      perspective: '1000px'
+    }}>
+      {['L', 'O', 'A', 'D', 'I', 'N', 'G'].map((letter, index) => (
+        <div 
+          key={letter}
             className="loader-cube"
-            style={{
-              width: '50px',
-              height: '50px',
-              position: 'relative',
-              transformStyle: 'preserve-3d',
+          style={{
+            width: '50px',
+            height: '50px',
+            position: 'relative',
+            transformStyle: 'preserve-3d',
               animationDelay: `${index * 0.1}s`
-            }}
-          >
+          }}
+        >
           <div className="face face-front" style={{
             position: 'absolute',
             width: '100%',
@@ -92,7 +92,7 @@ export const Loader = () => {
           }}></div>
         </div>
       ))}
-      </div>
+    </div>
     </>
   );
 };

@@ -38,7 +38,17 @@ export default function AdminPage() {
     setBuilders(json.builders || [])
   }
 
-  useEffect(() => { fetchBuilders() }, [])
+  useEffect(() => {
+    // Validate session on mount
+    const validateSession = async () => {
+      const res = await fetch('/api/admin/validate', { credentials: 'include' })
+      if (!res.ok) {
+        window.location.href = '/login?next=/admin'
+      }
+    }
+    validateSession()
+    fetchBuilders()
+  }, [])
 
   const onLogout = async () => {
     await fetch('/api/admin/logout', { method: 'POST', credentials: 'include' })
@@ -565,6 +575,16 @@ export default function AdminPage() {
             fontSize: '14px',
             whiteSpace: 'nowrap'
           }}>Generator</a>
+          <a href="/attendance" className="navbar-link" style={{
+            padding: '6px 12px',
+            borderRadius: '8px',
+            background: 'rgba(255,255,255,0.1)',
+            textDecoration: 'none',
+            transition: 'background 0.2s',
+            border: '1px solid rgba(255,255,255,0.2)',
+            fontSize: '14px',
+            whiteSpace: 'nowrap'
+          }}>Attendance</a>
           <button onClick={onLogout} className="navbar-button" style={{
             padding: '6px 12px',
             borderRadius: '8px',

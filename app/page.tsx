@@ -39,6 +39,17 @@ export default function HomePage() {
     }
   }, [])
 
+  // Validate session on mount
+  useEffect(() => {
+    const validateSession = async () => {
+      const res = await fetch('/api/admin/validate', { credentials: 'include' })
+      if (!res.ok) {
+        window.location.href = '/login?next=/'
+      }
+    }
+    validateSession()
+  }, [])
+
   // Fetch next number on component mount and when type changes
   useEffect(() => {
     fetchNextBuilderNumber(type)

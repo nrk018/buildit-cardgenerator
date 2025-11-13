@@ -76,7 +76,7 @@ export const Loader = () => {
             border: '1px solid rgba(255,255,255,0.2)',
             transform: 'rotateX(-90deg) translateZ(25px)'
           }}></div>
-        </div>
+  </div>
       ))}
       <style jsx>{`
         @keyframes rotate {
@@ -88,6 +88,6 @@ export const Loader = () => {
           }
         }
       `}</style>
-    </div>
+</div>
   );
 };
