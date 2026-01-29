@@ -23,6 +23,8 @@ export type BuilderRecord = {
   registration_number: string | null
   email: string | null
   department: string | null
+  room_number: string | null
+  contact_number: string | null
   created_at: string
   downloaded_at: string | null
   download_count?: number | null

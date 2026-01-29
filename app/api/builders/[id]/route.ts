@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabaseClient'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> | { id: string } }) {
   const body = await req.json()
-  const { name, type, registration_number, email, builder_number, department } = body || {}
+  const { name, type, registration_number, email, builder_number, department, room_number, contact_number } = body || {}
   // Handle both Next.js 14 (async params) and Next.js 13 (sync params)
   const resolvedParams = await Promise.resolve(params)
   const id = resolvedParams.id
@@ -68,6 +68,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (builder_number !== undefined) updates.builder_number = builder_number
   if (registration_number !== undefined) updates.registration_number = registration_number || null
   if (email !== undefined) updates.email = email || null
+  if (room_number !== undefined) updates.room_number = room_number || null
+  if (contact_number !== undefined) updates.contact_number = contact_number || null
   if (department !== undefined) {
     updates.department = newType !== 'MEM' ? (department || null) : null
   } else if (type !== undefined && newType === 'MEM') {

@@ -10,7 +10,19 @@ import QRCode from 'qrcode'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
-type Builder = { id?: string; name: string; builder_number: number; type: string; registration_number?: string | null; email?: string | null; department?: string | null; downloaded_at?: string | null; email_sent_at?: string | null }
+type Builder = { 
+  id?: string
+  name: string
+  builder_number: number
+  type: string
+  registration_number?: string | null
+  email?: string | null
+  department?: string | null
+  room_number?: string | null
+  contact_number?: string | null
+  downloaded_at?: string | null
+  email_sent_at?: string | null
+}
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
@@ -31,8 +43,11 @@ export default function AdminPage() {
   const [editReg, setEditReg] = useState('')
   const [editEmail, setEditEmail] = useState('')
   const [editDepartment, setEditDepartment] = useState('')
+  const [editRoom, setEditRoom] = useState('')
+  const [editContact, setEditContact] = useState('')
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [showDownloadConfirm, setShowDownloadConfirm] = useState(false)
+  const [detailsBuilder, setDetailsBuilder] = useState<Builder | null>(null)
 
   const fetchBuilders = async () => {
     const res = await fetch('/api/builders')
@@ -364,6 +379,8 @@ export default function AdminPage() {
     setEditReg(b.registration_number || '')
     setEditEmail(b.email || '')
     setEditDepartment(b.department || '')
+    setEditRoom(b.room_number || '')
+    setEditContact(b.contact_number || '')
   }
 
   const onSaveEdit = async () => {
@@ -376,7 +393,9 @@ export default function AdminPage() {
         type: editType, 
         registration_number: editReg || null, 
         email: editEmail || null,
-        department: editType !== 'MEM' ? (editDepartment || null) : null
+        department: editType !== 'MEM' ? (editDepartment || null) : null,
+        room_number: editRoom || null,
+        contact_number: editContact || null
       })
     })
     if (!res.ok) {
@@ -399,6 +418,8 @@ export default function AdminPage() {
     setEditReg('')
     setEditEmail('')
     setEditDepartment('')
+    setEditRoom('')
+    setEditContact('')
   }
 
   const onDelete = async (id: string) => {
@@ -802,10 +823,12 @@ export default function AdminPage() {
               <th style={{ width: '12%', padding: '6px 8px' }}>Name</th>
               <th style={{ width: '10%', padding: '6px 8px' }}>Reg #</th>
               <th style={{ width: '15%', padding: '6px 8px' }}>Email</th>
+              <th style={{ width: '10%', padding: '6px 8px' }}>Room</th>
+              <th style={{ width: '10%', padding: '6px 8px' }}>Contact</th>
               <th style={{ width: '12%', padding: '6px 8px' }}>Department</th>
-              <th style={{ width: '9%', padding: '6px 8px' }}>Downloaded?</th>
+              <th style={{ width: '7%', padding: '6px 8px' }}>Downloaded?</th>
               <th style={{ width: '8%', padding: '6px 8px' }}>Email Sent</th>
-              <th style={{ width: '21%', padding: '6px 8px' }}>Actions</th>
+              <th style={{ width: '15%', padding: '6px 8px' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -868,6 +891,20 @@ export default function AdminPage() {
                 </td>
                 <td style={{ padding: '6px 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {editingId === b.id ? (
+                    <input value={editRoom} onChange={e => setEditRoom(e.target.value)} style={{ width: '100%', fontSize: '13px', padding: '4px' }} />
+                  ) : (
+                    <span title={b.room_number || ''} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.room_number || '—'}</span>
+                  )}
+                </td>
+                <td style={{ padding: '6px 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {editingId === b.id ? (
+                    <input value={editContact} onChange={e => setEditContact(e.target.value)} style={{ width: '100%', fontSize: '13px', padding: '4px' }} />
+                  ) : (
+                    <span title={b.contact_number || ''} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.contact_number || '—'}</span>
+                  )}
+                </td>
+                <td style={{ padding: '6px 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {editingId === b.id ? (
                     editType !== 'MEM' ? (
                       <select 
                         value={editDepartment} 
@@ -922,6 +959,7 @@ export default function AdminPage() {
                       </>
                     ) : (
                       <>
+                        <button onClick={() => setDetailsBuilder(b)} style={{ fontSize: '11px', padding: '3px 6px' }}>Details</button>
                         <button onClick={() => onPreview(b)} style={{ fontSize: '11px', padding: '3px 6px' }}>Preview</button>
                         <button onClick={() => onEdit(b)} style={{ fontSize: '11px', padding: '3px 6px' }}>Edit</button>
                         <button onClick={() => setDeleteConfirmId(b.id || null)} style={{ fontSize: '11px', padding: '3px 6px', background: 'rgba(255,0,0,0.2)' }}>Delete</button>
@@ -1042,6 +1080,108 @@ export default function AdminPage() {
           </tbody>
         </table>
       </div>
+
+      {detailsBuilder && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0,0,0,0.5)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)'
+            }}
+            onClick={() => setDetailsBuilder(null)}
+          />
+          <div
+            style={{
+              background: 'rgba(21, 208, 170, 0.15)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              borderRadius: '20px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              padding: 24,
+              width: '100%',
+              maxWidth: 700,
+              position: 'relative',
+              zIndex: 1001,
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+          >
+            <div className="hstack" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ margin: 0, fontSize: 22 }}>
+                {detailsBuilder.name} — {detailsBuilder.type || 'MEM'}
+                {detailsBuilder.builder_number}
+              </h3>
+              <button
+                onClick={() => setDetailsBuilder(null)}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: 14,
+                  background: 'rgba(255,255,255,0.2)',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: 16
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>Builder Number</div>
+                <div style={{ fontSize: 16, fontWeight: 600 }}>
+                  {detailsBuilder.type || 'MEM'}
+                  {detailsBuilder.builder_number}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>Registration Number</div>
+                <div style={{ fontSize: 16 }}>{detailsBuilder.registration_number || '—'}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>Email</div>
+                <div style={{ fontSize: 16 }}>{detailsBuilder.email || '—'}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>Room Number</div>
+                <div style={{ fontSize: 16 }}>{detailsBuilder.room_number || '—'}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>Contact Number</div>
+                <div style={{ fontSize: 16 }}>{detailsBuilder.contact_number || '—'}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>Department</div>
+                <div style={{ fontSize: 16 }}>{detailsBuilder.department || (detailsBuilder.type === 'MEM' ? 'Member (no department)' : '—')}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>Downloaded At</div>
+                <div style={{ fontSize: 16 }}>
+                  {detailsBuilder.downloaded_at ? new Date(detailsBuilder.downloaded_at).toLocaleString() : '—'}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>Email Sent At</div>
+                <div style={{ fontSize: 16 }}>
+                  {detailsBuilder.email_sent_at ? new Date(detailsBuilder.email_sent_at).toLocaleString() : '—'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {previewName && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>

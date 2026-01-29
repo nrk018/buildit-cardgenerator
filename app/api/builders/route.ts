@@ -45,7 +45,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { name, builder_number, type, registration_number, email, department } = body || {}
+  const { name, builder_number, type, registration_number, email, department, room_number, contact_number } = body || {}
 
   if (!name) {
     return NextResponse.json({ error: 'name is required' }, { status: 400 })
@@ -110,7 +110,9 @@ export async function POST(req: NextRequest) {
       type, 
       registration_number: registration_number || null, 
       email: email || null,
-      department: type !== 'MEM' ? (department || null) : null
+      department: type !== 'MEM' ? (department || null) : null,
+      room_number: room_number || null,
+      contact_number: contact_number || null
     })
     .select('*')
     .single()

@@ -12,7 +12,11 @@ type Builder = {
   name: string
   builder_number: number
   type: string
+  registration_number: string | null
+  email: string | null
   department: string | null
+  room_number: string | null
+  contact_number: string | null
 }
 
 type Event = {
@@ -45,7 +49,7 @@ export default function AttendancePage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
   const [builders, setBuilders] = useState<Builder[]>([])
   const [events, setEvents] = useState<Event[]>([])
-  const [selectedEventType, setSelectedEventType] = useState<'desk_setup' | 'night' | 'perm' | 'gbm'>('desk_setup')
+  const [selectedEventType, setSelectedEventType] = useState<'desk_setup' | 'night_perm'>('desk_setup')
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [eventName, setEventName] = useState('')
   const [startTime, setStartTime] = useState('')
@@ -70,13 +74,16 @@ export default function AttendancePage() {
   const [eventStartTime, setEventStartTime] = useState('')
   const [eventEndTime, setEventEndTime] = useState('')
   const [updatingEventDate, setUpdatingEventDate] = useState(false)
+  const [nightPermEventName, setNightPermEventName] = useState('')
+  const [nightPermStartDate, setNightPermStartDate] = useState('')
+  const [nightPermEndDate, setNightPermEndDate] = useState('')
+  const [nightPermSelectedBuilderIds, setNightPermSelectedBuilderIds] = useState<string[]>([])
 
-  // Fetch builders (EC and CC only)
+  // Fetch builders (use for EC/CC flows and Night Perm)
   const fetchBuilders = async () => {
     const res = await fetch('/api/builders')
     const json = await res.json()
-    const ecAndCc = (json.builders || []).filter((b: Builder) => b.type === 'EC' || b.type === 'CC')
-    setBuilders(ecAndCc)
+    setBuilders(json.builders || [])
   }
 
   // Fetch events
@@ -819,6 +826,188 @@ export default function AttendancePage() {
       setCreatingEvent(false)
     }
   }
+
+  // Format date string YYYY-MM-DD to "D Month YYYY" for letter
+  const formatDateForLetter = (isoDate: string) => {
+    const d = new Date(isoDate + 'T12:00:00')
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`
+  }
+
+  // Night Perm PDF: Page 1 = permission letter (logo, event name, dates), Page 2 = members list
+  const handleDownloadNightPermPdf = useCallback(async () => {
+    if (!nightPermEventName || nightPermEventName.trim() === '') {
+      alert('Please enter the event name for Night Perm.')
+      return
+    }
+    if (!nightPermStartDate || !nightPermEndDate) {
+      alert('Please select a start date and end date for Night Perm.')
+      return
+    }
+    if (nightPermEndDate < nightPermStartDate) {
+      alert('End date must be on or after start date.')
+      return
+    }
+    if (nightPermSelectedBuilderIds.length === 0) {
+      alert('Please select at least one member for Night Perm.')
+      return
+    }
+
+    const selectedBuilders = builders.filter(b => nightPermSelectedBuilderIds.includes(b.id))
+    if (selectedBuilders.length === 0) {
+      alert('No valid members selected.')
+      return
+    }
+
+    const loadLogoAsBase64ForPdf = (): Promise<string> => {
+      return new Promise((resolve) => {
+        const img = document.createElement('img')
+        img.crossOrigin = 'anonymous'
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          canvas.width = img.width
+          canvas.height = img.height
+          const ctx = canvas.getContext('2d')!
+          ctx.drawImage(img, 0, 0)
+          resolve(canvas.toDataURL('image/png'))
+        }
+        img.onerror = () => resolve('')
+        img.src = typeof logoImage === 'string' ? logoImage : (logoImage as any).src || logoImage
+      })
+    }
+
+    const logoDataUrl = await loadLogoAsBase64ForPdf()
+    const doc = new jsPDF('p', 'mm', 'a4')
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 20
+    const lineHeight = 7
+    let y = 20
+
+    // ----- Page 1: Permission letter -----
+    // Green background + logo at top middle (same green as website #0f7463)
+    if (logoDataUrl && logoDataUrl.startsWith('data:image')) {
+      const logoWidth = 45
+      const logoPadding = 10
+      const img = document.createElement('img')
+      await new Promise<void>((r) => {
+        img.onload = () => r()
+        img.onerror = () => r()
+        img.src = logoDataUrl
+      })
+      if (img.width) {
+        const aspect = img.height / img.width
+        const logoH = logoWidth * aspect
+        const boxW = logoWidth + logoPadding * 2
+        const boxH = logoH + logoPadding * 2
+        const boxX = (pageWidth - boxW) / 2
+        const boxY = y - 5 - logoPadding
+        doc.setFillColor(15, 116, 99)
+        doc.rect(boxX, boxY, boxW, boxH, 'F')
+        doc.addImage(logoDataUrl, 'PNG', (pageWidth - logoWidth) / 2, y - 5, logoWidth, logoH)
+        y += logoH + 14
+      }
+    }
+
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
+    doc.text('To,', margin, y)
+    y += lineHeight
+    doc.text('The Chief Warden,', margin, y)
+    y += lineHeight
+    doc.text('Good Host Spaces Hostel, Manipal University Jaipur', margin, y)
+    y += lineHeight + 4
+    doc.text(`Subject: Request for Permission to Set Up Desk in Front of Dev sweets for event promotion.`, margin, y)
+    y += lineHeight + 6
+    doc.text('Respected Sir', margin, y)
+    y += lineHeight + 4
+
+    const eventName = nightPermEventName.trim()
+    const fromDateStr = formatDateForLetter(nightPermStartDate)
+    const toDateStr = formatDateForLetter(nightPermEndDate)
+
+    const body1 = `We, Team Buildit, are writing to request permission to set up a desk in front of dev sweets for the upcoming ${eventName} event. This initiative is an important part of our promotional and registration activities aimed at engaging students and encouraging participation in the event.`
+    const body2 = `${eventName} is a flagship event that provides a platform for aspiring entrepreneurs to present their innovative ideas and business models. The desk setup will help us streamline communication, answer queries, and ensure smooth coordination leading up to the event.`
+    const body3 = `We kindly seek your approval to set up the desk at GHS in front of dev sweets from ${fromDateStr} to ${toDateStr}.`
+    const body4 = `We look forward to your kind consideration and support in helping us make ${eventName} a successful and impactful event.`
+
+    doc.setFontSize(10)
+    const split1 = doc.splitTextToSize(body1, pageWidth - 2 * margin)
+    doc.text(split1, margin, y)
+    y += split1.length * lineHeight + 4
+    const split2 = doc.splitTextToSize(body2, pageWidth - 2 * margin)
+    doc.text(split2, margin, y)
+    y += split2.length * lineHeight + 4
+    const split3 = doc.splitTextToSize(body3, pageWidth - 2 * margin)
+    doc.text(split3, margin, y)
+    y += split3.length * lineHeight + 4
+    const split4 = doc.splitTextToSize(body4, pageWidth - 2 * margin)
+    doc.text(split4, margin, y)
+    y += split4.length * lineHeight + 10
+
+    doc.text('Thank You.', margin, y)
+    y += lineHeight + 8
+    doc.text('Warm regards,', margin, y)
+    y += lineHeight
+    doc.text('Team BuildIT', margin, y)
+    y += lineHeight
+    doc.text('Nirmal R M', margin, y)
+    y += lineHeight
+    doc.text('President buildit', margin, y)
+
+    // ----- Page 2: Selected members list -----
+    doc.addPage()
+    let tableY = 18
+    doc.setFontSize(16)
+    doc.text('Night Perm – List of Members', pageWidth / 2, tableY, { align: 'center' })
+    tableY += 12
+
+    const tableData = selectedBuilders.map((b, index) => [
+      String(index + 1),
+      `${b.type}${b.builder_number}`,
+      b.name,
+      b.registration_number || '-',
+      b.room_number || '-',
+      b.contact_number || '-'
+    ])
+    const glassGreen: [number, number, number] = [24, 165, 143]
+    autoTable(doc, {
+      head: [['#', 'Builder #', 'Name', 'Reg. No.', 'Room', 'Contact']],
+      body: tableData,
+      startY: tableY,
+      theme: 'plain',
+      styles: {
+        fillColor: glassGreen as any,
+        textColor: [255, 255, 255] as any,
+        fontSize: 9,
+        cellPadding: 4,
+        lineColor: [255, 255, 255] as any,
+        lineWidth: 0.3,
+        fontStyle: 'normal'
+      },
+      headStyles: {
+        fillColor: [21, 208, 170] as any,
+        textColor: [255, 255, 255] as any,
+        fontStyle: 'bold',
+        fontSize: 10,
+        lineColor: [255, 255, 255] as any,
+        lineWidth: 0.3
+      },
+      bodyStyles: {
+        fillColor: glassGreen as any,
+        textColor: [255, 255, 255] as any,
+        lineColor: [255, 255, 255] as any,
+        lineWidth: 0.3
+      },
+      alternateRowStyles: { fillColor: [22, 178, 156] as any },
+      margin: { top: 15, left: 10, right: 10, bottom: 15 },
+      showHead: 'everyPage',
+      showFoot: 'never',
+      tableWidth: 'auto'
+    })
+
+    doc.save(`night-perm-${nightPermStartDate}-to-${nightPermEndDate}.pdf`)
+  }, [builders, nightPermEventName, nightPermStartDate, nightPermEndDate, nightPermSelectedBuilderIds])
 
   // Allocate builder to time slot
   const handleAllocate = useCallback((builderId: string, slot: TimeSlot) => {
@@ -2909,9 +3098,7 @@ export default function AttendancePage() {
           }}
         >
           <option value="desk_setup" style={{ background: '#0f7463', color: 'white' }}>Desk Setup</option>
-          <option value="night" style={{ background: '#0f7463', color: 'white' }}>Night</option>
-          <option value="perm" style={{ background: '#0f7463', color: 'white' }}>Perm</option>
-          <option value="gbm" style={{ background: '#0f7463', color: 'white' }}>GBM</option>
+          <option value="night_perm" style={{ background: '#0f7463', color: 'white' }}>Night Perm</option>
         </select>
 
         {/* Event Selection */}
@@ -3027,6 +3214,128 @@ export default function AttendancePage() {
           </div>
         )}
       </div>
+
+      {/* Night Perm - simple selection + PDF download */}
+      {selectedEventType === 'night_perm' && (
+        <div style={{
+          background: 'rgba(21, 208, 170, 0.15)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          borderRadius: '20px',
+          padding: '24px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          width: '100%',
+          maxWidth: '900px'
+        }}>
+          <h2 style={{ margin: '0 0 20px 0', fontSize: '20px', fontWeight: '600' }}>Night Perm</h2>
+
+          <div className="vstack" style={{ gap: 16 }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', opacity: 0.9 }}>Event Name</label>
+              <input
+                type="text"
+                placeholder="e.g., Pitch Wars"
+                value={nightPermEventName}
+                onChange={e => setNightPermEventName(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 180px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', opacity: 0.9 }}>From Date</label>
+                <input
+                  type="date"
+                  value={nightPermStartDate}
+                  onChange={e => setNightPermStartDate(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ flex: '1 1 180px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', opacity: 0.9 }}>To Date</label>
+                <input
+                  type="date"
+                  value={nightPermEndDate}
+                  onChange={e => setNightPermEndDate(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', opacity: 0.9 }}>Select Members</label>
+              <div style={{
+                maxHeight: '320px',
+                overflowY: 'auto',
+                borderRadius: '12px',
+                border: '1px solid rgba(255,255,255,0.2)',
+                padding: '12px',
+                background: 'rgba(15, 116, 99, 0.4)'
+              }}>
+                {builders.length === 0 && (
+                  <p style={{ fontSize: '14px', opacity: 0.8 }}>No members found.</p>
+                )}
+                {builders.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {builders.map(b => {
+                      const checked = nightPermSelectedBuilderIds.includes(b.id)
+                      return (
+                        <label
+                          key={b.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '6px 8px',
+                            borderRadius: '8px',
+                            background: checked ? 'rgba(21, 208, 170, 0.4)' : 'transparent',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={e => {
+                              const isChecked = e.target.checked
+                              setNightPermSelectedBuilderIds(prev => {
+                                if (isChecked) {
+                                  if (prev.includes(b.id)) return prev
+                                  return [...prev, b.id]
+                                }
+                                return prev.filter(id => id !== b.id)
+                              })
+                            }}
+                          />
+                          <span style={{ fontSize: '14px' }}>
+                            <strong>{b.name}</strong> ({b.type}{b.builder_number})
+                            {b.registration_number ? ` - Reg: ${b.registration_number}` : ''}
+                            {b.room_number ? ` - Room: ${b.room_number}` : ''}
+                            {b.contact_number ? ` - Contact: ${b.contact_number}` : ''}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <button
+              onClick={() => handleDownloadNightPermPdf()}
+              disabled={
+                !nightPermEventName?.trim() ||
+                !nightPermStartDate ||
+                !nightPermEndDate ||
+                nightPermEndDate < nightPermStartDate ||
+                nightPermSelectedBuilderIds.length === 0
+              }
+              style={{ width: '100%', marginTop: '8px' }}
+            >
+              Download Night Perm PDF
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Create Event Form (for desk_setup) */}
       {selectedEventType === 'desk_setup' && viewMode === 'create' && !selectedEvent && (
